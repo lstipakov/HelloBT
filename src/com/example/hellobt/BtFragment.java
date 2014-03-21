@@ -192,4 +192,12 @@ public class BtFragment extends Fragment {
 			e.printStackTrace();
 		}
 	}
+
+	public void drive(int progress) {
+		send((progress >> 1) & ~0x80);
+	}
+
+	public void turn(int progress) {
+		send((progress >> 1) | 0x80);
+	}
 }

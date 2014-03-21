@@ -7,7 +7,8 @@ import android.support.v4.app.FragmentManager;
 import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
 
-public class MainActivity extends FragmentActivity {
+public class MainActivity extends FragmentActivity implements
+		OnSeekBarChangeListener {
 
 	private BtFragment mFrag = null;
 
@@ -26,31 +27,57 @@ public class MainActivity extends FragmentActivity {
 		}
 
 		SeekBar sb = (SeekBar) findViewById(R.id.seekBar1);
-		sb.setOnSeekBarChangeListener(new OnSeekBarChangeListener() {
+		sb.setOnSeekBarChangeListener(this);
 
-			@Override
-			public void onStopTrackingTouch(SeekBar seekBar) {
+		sb = (SeekBar) findViewById(R.id.seekBar2);
+		sb.setOnSeekBarChangeListener(this);
 
-			}
-
-			@Override
-			public void onStartTrackingTouch(SeekBar seekBar) {
-				// TODO Auto-generated method stub
-
-			}
-
-			@Override
-			public void onProgressChanged(SeekBar seekBar, int progress,
-					boolean fromUser) {
-				mFrag.send(seekBar.getProgress());
-
-			}
-		});
+		/*
+		 * new OnSeekBarChangeListener() {
+		 * 
+		 * @Override public void onStopTrackingTouch(SeekBar seekBar) {
+		 * 
+		 * }
+		 * 
+		 * @Override public void onStartTrackingTouch(SeekBar seekBar) { // TODO
+		 * Auto-generated method stub
+		 * 
+		 * }
+		 * 
+		 * @Override public void onProgressChanged(SeekBar seekBar, int
+		 * progress, boolean fromUser) { mFrag.send(seekBar.getProgress());
+		 * 
+		 * seekBar.getId()
+		 * 
+		 * } });
+		 */
 	}
 
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		mFrag.onActivityResult(requestCode, resultCode, data);
+	}
+
+	@Override
+	public void onProgressChanged(SeekBar seek, int progress, boolean arg2) {
+
+	}
+
+	@Override
+	public void onStartTrackingTouch(SeekBar arg0) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void onStopTrackingTouch(SeekBar seekBar) {
+		int progress = seekBar.getProgress();
+
+		if (seekBar.getId() == R.id.seekBar1) {
+			mFrag.drive(progress);
+		} else {
+			mFrag.turn(progress);
+		}
 	}
 
 }
