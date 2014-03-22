@@ -32,25 +32,7 @@ public class MainActivity extends FragmentActivity implements
 		sb = (SeekBar) findViewById(R.id.seekBar2);
 		sb.setOnSeekBarChangeListener(this);
 
-		/*
-		 * new OnSeekBarChangeListener() {
-		 * 
-		 * @Override public void onStopTrackingTouch(SeekBar seekBar) {
-		 * 
-		 * }
-		 * 
-		 * @Override public void onStartTrackingTouch(SeekBar seekBar) { // TODO
-		 * Auto-generated method stub
-		 * 
-		 * }
-		 * 
-		 * @Override public void onProgressChanged(SeekBar seekBar, int
-		 * progress, boolean fromUser) { mFrag.send(seekBar.getProgress());
-		 * 
-		 * seekBar.getId()
-		 * 
-		 * } });
-		 */
+		MqttService.actionStart(getApplicationContext());
 	}
 
 	@Override

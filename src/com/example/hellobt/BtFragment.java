@@ -11,12 +11,16 @@ import android.app.Dialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
+import android.support.v4.content.LocalBroadcastManager;
 
 public class BtFragment extends Fragment {
 	BluetoothAdapter mBluetoothAdapter;
@@ -138,6 +142,26 @@ public class BtFragment extends Fragment {
 		} else {
 			promptDevices();
 		}
+
+		LocalBroadcastManager.getInstance(getActivity()).registerReceiver(
+				new BroadcastReceiver() {
+
+					@Override
+					public void onReceive(Context context, Intent intent) {
+						String msg = intent.getStringExtra("msg");
+						if (msg.equals("u")) {
+							BtFragment.this.drive(180);
+						} else if (msg.equals("s")) {
+							BtFragment.this.drive(128);
+						} else if (msg.equals("r")) {
+							BtFragment.this.turn(180);
+						} else if (msg.equals("l")) {
+							BtFragment.this.turn(60);
+						} else if (msg.equals("d")) {
+							BtFragment.this.drive(60);
+						}
+					}
+				}, new IntentFilter("mqtt"));
 	}
 
 	protected void startConnection(String string) {
