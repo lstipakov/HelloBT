@@ -72,9 +72,8 @@ public class BtService extends Service {
                 } catch (InterruptedException e1) {
                     e1.printStackTrace();
                 }
-                // reconnect
-				BtService.this.startService(new Intent(BtService.this,
-						BtService.class));
+
+                startConnection();
 
 				return;
 			}
@@ -82,8 +81,6 @@ public class BtService extends Service {
 			// Do work to manage the connection (in a separate thread)
 			connectedThread = new ConnectedThread(socket);
 			connectedThread.start();
-
-			connected = true;
 		}
 	}
 
@@ -107,7 +104,9 @@ public class BtService extends Service {
 
 			mmInStream = tmpIn;
 			mmOutStream = tmpOut;
-		}
+
+            connected = true;
+        }
 
 		@Override
 		public void run() {
@@ -131,6 +130,8 @@ public class BtService extends Service {
             } catch (InterruptedException e1) {
                 e1.printStackTrace();
             }
+
+            startConnection();
 		}
 
 		/* Call this from the main activity to send data to the remote device */
@@ -141,15 +142,30 @@ public class BtService extends Service {
 				Log.d(TAG, "bt disconnected");
 				connected = false;
 
-				BtService.this.startService(new Intent(BtService.this,
-						BtService.class));
+                startConnection();
 			}
 		}
 	}
 
+    void startConnection() {
+        Set<BluetoothDevice> devices = BluetoothAdapter.getDefaultAdapter()
+                .getBondedDevices();
+        for (BluetoothDevice d : devices) {
+            if (d.getName().equals(BT_NAME)) {
+
+                connectThread = new ConnectThread(d);
+                connectThread.start();
+
+                break;
+            }
+        }
+    }
+
 	@Override
 	public void onCreate() {
 		super.onCreate();
+
+        startConnection();
 
 		LocalBroadcastManager.getInstance(this).registerReceiver(
 				new BroadcastReceiver() {
@@ -173,31 +189,6 @@ public class BtService extends Service {
 						}
 					}
 				}, new IntentFilter("mqtt"));
-	}
-
-	@Override
-	public int onStartCommand(Intent intent, int flags, int startId) {
-		if (connected) {
-			Toast.makeText(this, "BT already connected", Toast.LENGTH_SHORT)
-					.show();
-			return Service.START_REDELIVER_INTENT;
-		}
-
-		Set<BluetoothDevice> devices = BluetoothAdapter.getDefaultAdapter()
-				.getBondedDevices();
-		for (BluetoothDevice d : devices) {
-			if (d.getName().equals(BT_NAME)) {
-
-				connectThread = new ConnectThread(d);
-				connectThread.start();
-
-				return Service.START_REDELIVER_INTENT;
-			}
-		}
-
-		Toast.makeText(this, "No compatible BT devices found",
-				Toast.LENGTH_SHORT).show();
-		return Service.START_REDELIVER_INTENT;
 	}
 
 	@Override

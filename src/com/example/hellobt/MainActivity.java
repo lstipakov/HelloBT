@@ -1,6 +1,8 @@
 package com.example.hellobt;
 
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 import org.apache.http.HttpResponse;
@@ -128,6 +130,10 @@ public class MainActivity extends FragmentActivity {
 
 			@Override
 			public void run() {
+
+
+
+
 				// Create a new HttpClient and Post Header
 				HttpClient httpclient = new DefaultHttpClient();
 
