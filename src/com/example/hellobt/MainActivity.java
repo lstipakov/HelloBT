@@ -38,6 +38,8 @@ public class MainActivity extends FragmentActivity {
 
 	Handler handler;
 
+	int SHOOT_DELAY = 5000;
+
 	@Override
 	public void onConfigurationChanged(Configuration newConfig) {
 		// ignore orientation/keyboard change
@@ -115,7 +117,7 @@ public class MainActivity extends FragmentActivity {
 
 		handler = new Handler();
 
-		handler.postDelayed(shooter, 10000);
+		handler.postDelayed(shooter, SHOOT_DELAY);
 
 		HandlerThread handlerThread = new HandlerThread("poster");
 		handlerThread.start();
@@ -159,7 +161,7 @@ public class MainActivity extends FragmentActivity {
 
 			camera.startPreview();
 
-			handler.postDelayed(shooter, 10000);
+			handler.postDelayed(shooter, SHOOT_DELAY);
 		}
 	};
 
