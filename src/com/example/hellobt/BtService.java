@@ -66,7 +66,13 @@ public class BtService extends Service {
 					socket.close();
 				} catch (IOException closeException) {
 				}
-				// reconnect
+
+                try {
+                    Thread.sleep(5000);
+                } catch (InterruptedException e1) {
+                    e1.printStackTrace();
+                }
+                // reconnect
 				BtService.this.startService(new Intent(BtService.this,
 						BtService.class));
 
@@ -120,8 +126,11 @@ public class BtService extends Service {
 				}
 			}
 
-			BtService.this.startService(new Intent(BtService.this,
-					BtService.class));
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e1) {
+                e1.printStackTrace();
+            }
 		}
 
 		/* Call this from the main activity to send data to the remote device */
