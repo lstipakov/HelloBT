@@ -33,7 +33,7 @@
         </activity>
         
         <service android:name=".MqttService"/>
-        
+        <service android:name=".BtService"/>
         
     </application>
 

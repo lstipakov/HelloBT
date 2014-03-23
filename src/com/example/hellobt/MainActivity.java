@@ -9,6 +9,8 @@ import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
 
+import android.app.Activity;
+import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.hardware.Camera;
@@ -17,7 +19,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.v4.app.FragmentActivity;
-import android.support.v4.app.FragmentManager;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -26,7 +27,7 @@ import android.widget.Toast;
 
 public class MainActivity extends FragmentActivity {
 
-	private BtFragment mFrag = null;
+	private final BtFragment mFrag = null;
 
 	private Camera camera;
 
@@ -91,6 +92,8 @@ public class MainActivity extends FragmentActivity {
 
 	Handler poster;
 
+	int REQUEST_ENABLE_BT = 1;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -99,13 +102,12 @@ public class MainActivity extends FragmentActivity {
 
 		setContentView(R.layout.activity_main);
 
-		FragmentManager fm = getSupportFragmentManager();
-
-		mFrag = (BtFragment) fm.findFragmentByTag("frag");
-
-		if (mFrag == null) {
-			mFrag = new BtFragment();
-			fm.beginTransaction().add(mFrag, "frag").commit();
+		BluetoothAdapter ad = BluetoothAdapter.getDefaultAdapter();
+		if (!ad.isEnabled()) {
+			startActivityForResult(new Intent(
+					BluetoothAdapter.ACTION_REQUEST_ENABLE), REQUEST_ENABLE_BT);
+		} else {
+			startService(new Intent(this, BtService.class));
 		}
 
 		MqttService.actionStart(getApplicationContext());
@@ -229,6 +231,8 @@ public class MainActivity extends FragmentActivity {
 
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		mFrag.onActivityResult(requestCode, resultCode, data);
+		if (resultCode == Activity.RESULT_OK) {
+			startService(new Intent(this, BtService.class));
+		}
 	}
 }
