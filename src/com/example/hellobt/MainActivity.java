@@ -27,8 +27,6 @@ import android.widget.Toast;
 
 public class MainActivity extends FragmentActivity {
 
-	private final BtFragment mFrag = null;
-
 	private Camera camera;
 
 	SurfaceView preview;
