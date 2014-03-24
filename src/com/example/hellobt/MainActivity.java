@@ -1,8 +1,6 @@
 package com.example.hellobt;
 
 import java.io.IOException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
 import org.apache.http.HttpResponse;
@@ -11,6 +9,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
 
@@ -53,16 +52,21 @@ public class MainActivity extends FragmentActivity {
 	public void onResume() {
 		super.onResume();
 
+        Log.d(TAG, "onResume");
+
         // Open the default i.e. the first rear facing camera.
         camera = Camera.open();
         preview.setCamera(camera);
 
+        handler.removeCallbacks(shooter);
         handler.postDelayed(shooter, SHOOT_DELAY);
     }
 
 	@Override
 	public void onPause() {
 		super.onPause();
+
+        Log.d(TAG, "onPause");
 
         preview.setCamera(null);
         camera.release();
@@ -87,7 +91,7 @@ public class MainActivity extends FragmentActivity {
 			startService(new Intent(this, BtService.class));
 		}
 
-		MqttService.actionStart(getApplicationContext());
+        startService(new Intent(this, MqttService.class));
 
 
         // Create a RelativeLayout container that will hold a SurfaceView,
@@ -112,11 +116,15 @@ public class MainActivity extends FragmentActivity {
                 return;
             }
 
+            Log.d(TAG, "About to start preview");
             camera.startPreview();
 
+            Log.d(TAG, "About to take pic");
             camera.takePicture(null, null, new PictureCallback() {
                 @Override
                 public void onPictureTaken(byte[] bytes, Camera camera) {
+                    Log.d(TAG, "Pic taken");
+
                     Toast.makeText(MainActivity.this, "pic taken", Toast.LENGTH_SHORT).show();
 
                     post(bytes);
@@ -130,25 +138,21 @@ public class MainActivity extends FragmentActivity {
 
 			@Override
 			public void run() {
+                Log.d(TAG, "Uploading pic");
 
-
-
-
-				// Create a new HttpClient and Post Header
-				HttpClient httpclient = new DefaultHttpClient();
-
-                HttpParams params = httpclient.getParams();
-                HttpConnectionParams.setConnectionTimeout(params, 10000);
+                HttpParams params = new BasicHttpParams();
+                HttpConnectionParams.setConnectionTimeout(params, 5000);
                 HttpConnectionParams.setSoTimeout(params, 10000);
 
-				HttpPost httppost = new HttpPost(
-						"http://stipakov.fi/s/upload.py");
+                HttpClient client = new DefaultHttpClient(params);
+
+				HttpPost httppost = new HttpPost("http://stipakov.fi/s/upload.py");
 
 				try {
 					httppost.setEntity(new ByteArrayEntity(data));
 
 					// Execute HTTP Post Request
-					HttpResponse response = httpclient.execute(httppost);
+					HttpResponse response = client.execute(httppost);
 
 				} catch (ClientProtocolException e) {
 					// TODO Auto-generated catch block
@@ -156,7 +160,9 @@ public class MainActivity extends FragmentActivity {
 					Log.e("MainActivity", e.toString());
 				}
 
+                Log.d(TAG, "Pic uploaded");
 
+                handler.removeCallbacks(shooter);
                 handler.postDelayed(shooter, SHOOT_DELAY);
 			}
 		});

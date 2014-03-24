@@ -8,7 +8,8 @@
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
 	<uses-permission android:name="android.permission.INTERNET" />
 	<uses-permission android:name="android.permission.CAMERA" />
-	
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
 	<uses-feature android:name="android.hardware.camera" android:required="true" />
     
     <uses-sdk
@@ -31,10 +32,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
-        <service android:name=".MqttService"/>
+
         <service android:name=".BtService"/>
-        
+        <service android:name=".MqttService"/>
+
     </application>
 
 </manifest>
