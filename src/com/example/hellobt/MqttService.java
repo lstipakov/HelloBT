@@ -72,6 +72,9 @@ public class MqttService extends Service implements MqttCallback {
                 Log.d(TAG, "Connected");
             } catch (MqttException e) {
                 Log.e(TAG, e.toString());
+
+                connHandler.removeCallbacks(connect);
+                connHandler.postDelayed(connect, RECONNECT_INTERVAL);
             }
         }
     };

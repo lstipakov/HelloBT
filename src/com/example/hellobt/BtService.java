@@ -106,6 +106,8 @@ public class BtService extends Service {
 			mmOutStream = tmpOut;
 
             connected = true;
+
+            Log.d(TAG, "connected");
         }
 
 		@Override
