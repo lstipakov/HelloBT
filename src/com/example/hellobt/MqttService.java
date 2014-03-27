@@ -1,7 +1,10 @@
 package com.example.hellobt;
 
 import android.app.Service;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
@@ -57,6 +60,29 @@ public class MqttService extends Service implements MqttCallback {
 
         connHandler = new Handler(thread.getLooper());
         connHandler.post(connect);
+
+        LocalBroadcastManager.getInstance(this).registerReceiver(
+                new BroadcastReceiver() {
+
+                    @Override
+                    public void onReceive(Context context, Intent intent) {
+                        int dist = intent.getIntExtra("msg", 0);
+
+                        Log.d(TAG, "received " + dist);
+
+                        if (client.isConnected()) {
+                            MqttMessage m = new MqttMessage();
+                            byte[] b = new byte[1];
+                            b[0] = (byte)dist;
+                            m.setPayload(b);
+                            try {
+                                client.publish("d", m);
+                            } catch (MqttException e) {
+                                Log.e(TAG, e.toString());
+                            }
+                        }
+                    }
+                }, new IntentFilter("bt"));
     }
 
     private Runnable connect = new Runnable() {

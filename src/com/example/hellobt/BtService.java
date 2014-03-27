@@ -119,6 +119,12 @@ public class BtService extends Service {
 				try {
 					// Read from the InputStream
 					mmInStream.read(buffer);
+                    int b = buffer[0] & 0xff;
+                    Log.d(TAG, "distance: " + b);
+
+                    Intent intent = new Intent("bt");
+                    intent.putExtra("msg", b);
+                    LocalBroadcastManager.getInstance(BtService.this).sendBroadcast(intent);
 
 				} catch (IOException e) {
 					Log.d(TAG, "bt disconnected");
