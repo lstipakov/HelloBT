@@ -1,5 +1,6 @@
 package com.example.hellobt;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.List;
 
@@ -18,6 +19,8 @@ import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.hardware.Camera;
 import android.hardware.Camera.PictureCallback;
 import android.os.Bundle;
@@ -140,6 +143,11 @@ public class MainActivity extends FragmentActivity {
 			public void run() {
                 Log.d(TAG, "Uploading pic");
 
+
+                Bitmap bmp = BitmapFactory.decodeByteArray(data, 0, data.length);
+                ByteArrayOutputStream blob = new ByteArrayOutputStream();
+                bmp.compress(Bitmap.CompressFormat.JPEG, 50, blob);
+
                 HttpParams params = new BasicHttpParams();
                 HttpConnectionParams.setConnectionTimeout(params, 5000);
                 HttpConnectionParams.setSoTimeout(params, 10000);
@@ -149,7 +157,7 @@ public class MainActivity extends FragmentActivity {
 				HttpPost httppost = new HttpPost("http://stipakov.fi/s/upload.py");
 
 				try {
-					httppost.setEntity(new ByteArrayEntity(data));
+					httppost.setEntity(new ByteArrayEntity(blob.toByteArray()));
 
 					// Execute HTTP Post Request
 					HttpResponse response = client.execute(httppost);
@@ -310,7 +318,7 @@ public class MainActivity extends FragmentActivity {
             // the preview.
             Camera.Parameters parameters = mCamera.getParameters();
             parameters.setPreviewSize(mPreviewSize.width, mPreviewSize.height);
-            parameters.setJpegQuality(50);
+            parameters.setJpegQuality(80);
             parameters.setPictureSize(640, 480);
             requestLayout();
 
