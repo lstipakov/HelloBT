@@ -1,10 +1,23 @@
 package com.example.hellobt;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.util.List;
+import android.app.Activity;
+import android.bluetooth.BluetoothAdapter;
+import android.content.Intent;
+import android.content.res.Configuration;
+import android.graphics.ImageFormat;
+import android.graphics.Rect;
+import android.graphics.YuvImage;
+import android.hardware.Camera;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.os.Handler;
+import android.support.v4.app.FragmentActivity;
+import android.util.Log;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
+import android.view.WindowManager;
+import android.widget.Toast;
 
-import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpPost;
@@ -14,36 +27,19 @@ import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
 
-import android.app.Activity;
-import android.bluetooth.BluetoothAdapter;
-import android.content.Context;
-import android.content.Intent;
-import android.content.res.Configuration;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.hardware.Camera;
-import android.hardware.Camera.PictureCallback;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.HandlerThread;
-import android.support.v4.app.FragmentActivity;
-import android.util.Log;
-import android.view.SurfaceHolder;
-import android.view.SurfaceView;
-import android.view.View;
-import android.view.ViewGroup;
-import android.view.WindowManager;
-import android.widget.Toast;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 
 public class MainActivity extends FragmentActivity {
 
-	private Camera camera;
-
-	Preview preview;
-
-	Handler handler;
-
-	int SHOOT_DELAY = 5000;
+    private SurfaceView preview=null;
+    private SurfaceHolder previewHolder=null;
+    private Camera camera=null;
+    private boolean inPreview=false;
+    private boolean cameraConfigured=false;
 
 	@Override
 	public void onConfigurationChanged(Configuration newConfig) {
@@ -57,23 +53,21 @@ public class MainActivity extends FragmentActivity {
 
         Log.d(TAG, "onResume");
 
-        // Open the default i.e. the first rear facing camera.
-        camera = Camera.open();
-        preview.setCamera(camera);
-
-        handler.removeCallbacks(shooter);
-        handler.postDelayed(shooter, SHOOT_DELAY);
+        camera=Camera.open();
+        startPreview();
     }
 
 	@Override
 	public void onPause() {
-		super.onPause();
+        if (inPreview) {
+            camera.stopPreview();
+        }
 
-        Log.d(TAG, "onPause");
-
-        preview.setCamera(null);
         camera.release();
-        camera = null;
+        camera=null;
+        inPreview=false;
+
+        super.onPause();
 	}
 
 	Handler poster;
@@ -96,85 +90,15 @@ public class MainActivity extends FragmentActivity {
 
         startService(new Intent(this, MqttService.class));
 
+        setContentView(R.layout.activity_main);
 
-        // Create a RelativeLayout container that will hold a SurfaceView,
-        // and set it as the content of our activity.
-        preview = new Preview(this);
-        setContentView(preview);
-
-		handler = new Handler();
-
-		HandlerThread handlerThread = new HandlerThread("poster");
-		handlerThread.start();
-		poster = new Handler(handlerThread.getLooper());
+        preview=(SurfaceView)findViewById(R.id.preview);
+        previewHolder=preview.getHolder();
+        previewHolder.addCallback(surfaceCallback);
+        previewHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
 	}
 
     private static final String TAG = "MainActivity";
-
-    Runnable shooter = new Runnable() {
-        @Override
-        public void run() {
-            if (camera == null) {
-                Log.d(TAG, "Camera is null, we're probably on background");
-                return;
-            }
-
-            Log.d(TAG, "About to start preview");
-            camera.startPreview();
-
-            Log.d(TAG, "About to take pic");
-            camera.takePicture(null, null, new PictureCallback() {
-                @Override
-                public void onPictureTaken(byte[] bytes, Camera camera) {
-                    Log.d(TAG, "Pic taken");
-
-                    Toast.makeText(MainActivity.this, "pic taken", Toast.LENGTH_SHORT).show();
-
-                    post(bytes);
-                }
-            });
-        }
-    };
-
-	void post(final byte[] data) {
-		poster.post(new Runnable() {
-
-			@Override
-			public void run() {
-                Log.d(TAG, "Uploading pic");
-
-
-                Bitmap bmp = BitmapFactory.decodeByteArray(data, 0, data.length);
-                ByteArrayOutputStream blob = new ByteArrayOutputStream();
-                bmp.compress(Bitmap.CompressFormat.JPEG, 50, blob);
-
-                HttpParams params = new BasicHttpParams();
-                HttpConnectionParams.setConnectionTimeout(params, 5000);
-                HttpConnectionParams.setSoTimeout(params, 10000);
-
-                HttpClient client = new DefaultHttpClient(params);
-
-				HttpPost httppost = new HttpPost("http://stipakov.fi/s/upload.py");
-
-				try {
-					httppost.setEntity(new ByteArrayEntity(blob.toByteArray()));
-
-					// Execute HTTP Post Request
-					HttpResponse response = client.execute(httppost);
-
-				} catch (ClientProtocolException e) {
-					// TODO Auto-generated catch block
-				} catch (IOException e) {
-					Log.e("MainActivity", e.toString());
-				}
-
-                Log.d(TAG, "Pic uploaded");
-
-                handler.removeCallbacks(shooter);
-                handler.postDelayed(shooter, SHOOT_DELAY);
-			}
-		});
-	}
 
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -183,148 +107,134 @@ public class MainActivity extends FragmentActivity {
 		}
 	}
 
-    /**
-     * A simple wrapper around a Camera and a SurfaceView that renders a centered preview of the Camera
-     * to the surface. We need to center the SurfaceView because not all devices have cameras that
-     * support preview sizes at the same aspect ratio as the device's display.
-     */
-    class Preview extends ViewGroup implements SurfaceHolder.Callback {
-        private final String TAG = "Preview";
-
-        SurfaceView mSurfaceView;
-        SurfaceHolder mHolder;
-        Camera.Size mPreviewSize;
-        List<Camera.Size> mSupportedPreviewSizes;
-        Camera mCamera;
-
-        Preview(Context context) {
-            super(context);
-
-            mSurfaceView = new SurfaceView(context);
-            addView(mSurfaceView);
-
-            // Install a SurfaceHolder.Callback so we get notified when the
-            // underlying surface is created and destroyed.
-            mHolder = mSurfaceView.getHolder();
-            mHolder.addCallback(this);
-            mHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
-        }
-
-        public void setCamera(Camera camera) {
-            mCamera = camera;
-            if (mCamera != null) {
-                mSupportedPreviewSizes = mCamera.getParameters().getSupportedPreviewSizes();
-                requestLayout();
+    private Camera.Size getBestPreviewSize(int width, int height,
+                                           Camera.Parameters parameters) {
+        List<Camera.Size> sizes = parameters.getSupportedPreviewSizes();
+        Collections.sort(sizes, new Comparator<Camera.Size>() {
+            public int compare(final Camera.Size a, final Camera.Size b) {
+                return a.width * a.height - b.width * b.height;
             }
+        });
+
+        if (sizes.size() > 2) {
+            return sizes.get(2);
+        } else {
+            return sizes.get(0);
         }
+    }
 
-        @Override
-        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-            // We purposely disregard child measurements because act as a
-            // wrapper to a SurfaceView that centers the camera preview instead
-            // of stretching it.
-            final int width = resolveSize(getSuggestedMinimumWidth(), widthMeasureSpec);
-            final int height = resolveSize(getSuggestedMinimumHeight(), heightMeasureSpec);
-            setMeasuredDimension(width, height);
-
-            if (mSupportedPreviewSizes != null) {
-                mPreviewSize = getOptimalPreviewSize(mSupportedPreviewSizes, width, height);
-            }
-        }
-
-        @Override
-        protected void onLayout(boolean changed, int l, int t, int r, int b) {
-            if (changed && getChildCount() > 0) {
-                final View child = getChildAt(0);
-
-                final int width = r - l;
-                final int height = b - t;
-
-                int previewWidth = width;
-                int previewHeight = height;
-                if (mPreviewSize != null) {
-                    previewWidth = mPreviewSize.width;
-                    previewHeight = mPreviewSize.height;
-                }
-
-                // Center the child SurfaceView within the parent.
-                if (width * previewHeight > height * previewWidth) {
-                    final int scaledChildWidth = previewWidth * height / previewHeight;
-                    child.layout((width - scaledChildWidth) / 2, 0,
-                            (width + scaledChildWidth) / 2, height);
-                } else {
-                    final int scaledChildHeight = previewHeight * width / previewWidth;
-                    child.layout(0, (height - scaledChildHeight) / 2,
-                            width, (height + scaledChildHeight) / 2);
-                }
-            }
-        }
-
-        public void surfaceCreated(SurfaceHolder holder) {
-            // The Surface has been created, acquire the camera and tell it where
-            // to draw.
+    private void initPreview(int width, int height) {
+        if (camera!=null && previewHolder.getSurface()!=null) {
             try {
-                if (mCamera != null) {
-                    mCamera.setPreviewDisplay(holder);
-                }
-            } catch (IOException exception) {
-                Log.e(TAG, "IOException caused by setPreviewDisplay()", exception);
+                camera.setPreviewDisplay(previewHolder);
             }
+            catch (Throwable t) {
+                Log.e("PreviewDemo-surfaceCallback",
+                        "Exception in setPreviewDisplay()", t);
+                Toast
+                        .makeText(MainActivity.this, t.getMessage(), Toast.LENGTH_LONG)
+                        .show();
+            }
+
+            if (!cameraConfigured) {
+                Camera.Parameters parameters=camera.getParameters();
+                Camera.Size size=getBestPreviewSize(width, height,
+                        parameters);
+
+                if (size!=null) {
+                    parameters.setPreviewSize(size.width, size.height);
+                    camera.setParameters(parameters);
+                    cameraConfigured=true;
+                }
+            }
+        }
+    }
+
+    byte[] buf = new byte[1024 * 1024];
+
+    class SenderTask extends AsyncTask<Void, Void, Void> {
+
+        byte[] getJpegBytes() {
+            Camera.Size previewSize = camera.getParameters().getPreviewSize();
+            YuvImage yuvimage=new YuvImage(buf, ImageFormat.NV21, previewSize.width,
+                    previewSize.height, null);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            yuvimage.compressToJpeg(new Rect(0, 0, previewSize.width, previewSize.height), 80, baos);
+            return baos.toByteArray();
+        }
+
+        void send(byte[] bytes) {
+            HttpParams params = new BasicHttpParams();
+            HttpConnectionParams.setConnectionTimeout(params, 5000);
+            HttpConnectionParams.setSoTimeout(params, 10000);
+            HttpClient client = new DefaultHttpClient(params);
+            HttpPost httppost = new HttpPost("http://stipakov.fi/hello/");
+            try {
+                httppost.setEntity(new ByteArrayEntity(bytes));
+                client.execute(httppost);
+            } catch (ClientProtocolException e) {
+                Log.e(TAG, e.toString());
+            } catch (IOException e) {
+                Log.e(TAG, e.toString());
+            }
+
+            Log.d(TAG, "sent");
+        }
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            if (!inPreview || camera == null) {
+                Log.d(TAG, "not in preview");
+                return null;
+            }
+
+            byte[] bytes = getJpegBytes();
+            send(bytes);
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void param) {
+            if (camera != null) {
+                camera.addCallbackBuffer(buf);
+            } else {
+                Log.d(TAG, "not in preview");
+            }
+        }
+    }
+
+    private void startPreview() {
+        if (cameraConfigured && camera!=null) {
+
+            camera.setPreviewCallbackWithBuffer(new Camera.PreviewCallback() {
+                public void onPreviewFrame(byte[] imageData, Camera arg1) {
+                    Log.d(TAG, "onPreviewFrame");
+
+                    new SenderTask().execute();
+                }
+            });
+
+            camera.addCallbackBuffer(buf);
+
+            camera.startPreview();
+            inPreview=true;
+        }
+    }
+
+    SurfaceHolder.Callback surfaceCallback=new SurfaceHolder.Callback() {
+        public void surfaceCreated(SurfaceHolder holder) {
+            // no-op -- wait until surfaceChanged()
+        }
+
+        public void surfaceChanged(SurfaceHolder holder,
+                                   int format, int width,
+                                   int height) {
+            initPreview(width, height);
+            startPreview();
         }
 
         public void surfaceDestroyed(SurfaceHolder holder) {
-            // Surface will be destroyed when we return, so stop the preview.
-            if (mCamera != null) {
-                mCamera.stopPreview();
-            }
+            // no-op
         }
-
-
-        private Camera.Size getOptimalPreviewSize(List<Camera.Size> sizes, int w, int h) {
-            final double ASPECT_TOLERANCE = 0.1;
-            double targetRatio = (double) w / h;
-            if (sizes == null) return null;
-
-            Camera.Size optimalSize = null;
-            double minDiff = Double.MAX_VALUE;
-
-            int targetHeight = h;
-
-            // Try to find an size match aspect ratio and size
-            for (Camera.Size size : sizes) {
-                double ratio = (double) size.width / size.height;
-                if (Math.abs(ratio - targetRatio) > ASPECT_TOLERANCE) continue;
-                if (Math.abs(size.height - targetHeight) < minDiff) {
-                    optimalSize = size;
-                    minDiff = Math.abs(size.height - targetHeight);
-                }
-            }
-
-            // Cannot find the one match the aspect ratio, ignore the requirement
-            if (optimalSize == null) {
-                minDiff = Double.MAX_VALUE;
-                for (Camera.Size size : sizes) {
-                    if (Math.abs(size.height - targetHeight) < minDiff) {
-                        optimalSize = size;
-                        minDiff = Math.abs(size.height - targetHeight);
-                    }
-                }
-            }
-            return optimalSize;
-        }
-
-        public void surfaceChanged(SurfaceHolder holder, int format, int w, int h) {
-            // Now that the size is known, set up the camera parameters and begin
-            // the preview.
-            Camera.Parameters parameters = mCamera.getParameters();
-            parameters.setPreviewSize(mPreviewSize.width, mPreviewSize.height);
-            parameters.setJpegQuality(80);
-            parameters.setPictureSize(640, 480);
-            requestLayout();
-
-            mCamera.setParameters(parameters);
-            // mCamera.startPreview();
-        }
-
-    }
+    };
 }
